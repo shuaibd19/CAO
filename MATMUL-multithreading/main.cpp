@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <vector>
 #include <numeric>
+#include <fstream>
 
 using namespace std;
 using namespace std::chrono;
@@ -13,7 +14,7 @@ using namespace std::chrono;
 //size of the matricies i.e. row and columns for square matrix
 static const int M_SIZE = 1024;
 //number of total threads available for system - due to change so it can read from file
-static const int MAX_THREADS = 10;
+//static const int MAX_THREADS = 4;
 
 class Matrix
 {
@@ -67,16 +68,20 @@ public:
 	}
 };
 
-void matMul(const int numThreads, const Matrix& A, const Matrix& B, Matrix& C);
+void matMul(const int numThreads, int MAX_Threads, const Matrix& A, const Matrix& B, Matrix& C);
+const int saveValue();
 
 int main()
 {
+	
+	const int numOfThreads = saveValue();
 	const int numIterations = 10;
 	vector<int> times;
 	int count = 0;
 	int t;
 	//creating an array of threads
-	std::thread threads[MAX_THREADS];
+	thread *threads;
+	threads = new thread[numOfThreads];
 	Matrix A, B, C;
 
 	srand((unsigned int)time(NULL));
@@ -93,12 +98,12 @@ int main()
 	while (count < 10)
 	{
 		auto start = high_resolution_clock::now();
-		for (int i = 0; i < MAX_THREADS; i++)
+		for (int i = 0; i < numOfThreads; i++)
 		{
-			threads[i] = std::thread(matMul, i, std::ref(A), std::ref(B), std::ref(C));
+			threads[i] = std::thread(matMul, i, numOfThreads, std::ref(A), std::ref(B), std::ref(C));
 		}
 
-		for (int i = 0; i < MAX_THREADS; i++)
+		for (int i = 0; i < numOfThreads; i++)
 		{
 			threads[i].join();
 		}
@@ -117,20 +122,26 @@ int main()
 	double average = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 	cout << "Aveage time: " << average << " milliseconds - to execute\n";
 
+	ofstream oFile;
+	oFile.open("history.txt", std::ios_base::app);
+	oFile << "\n";
+	oFile << "Threads: " << numOfThreads << " - Av. Time: " << average << "ms";
+	oFile.close();
+
 	return 0;
 
 }
 
-void matMul(const int numThreads, const Matrix & A, const Matrix & B, Matrix & C)
+void matMul(const int numThreads, int MAX_Threads, const Matrix & A, const Matrix & B, Matrix & C)
 {
 	int start, end;
 	//These are for finding out workload of matrix
 	//calculating the number of elements in matrix
 	const int numElements = (M_SIZE * M_SIZE);
 	//calculating the number of operations each thread has to do
-	const int numOperations = (numElements / MAX_THREADS);
+	const int numOperations = (numElements / MAX_Threads);
 	//The operations that are left for someone else to do
-	const int extraOperations = (numElements % MAX_THREADS);
+	const int extraOperations = (numElements % MAX_Threads);
 
 	if (numThreads == 0)
 	{
@@ -156,4 +167,25 @@ void matMul(const int numThreads, const Matrix & A, const Matrix & B, Matrix & C
 		}
 		C.data[rowIndex][colIndex] = temp;
 	}
+}
+
+const int saveValue()
+{
+	int value;
+	ifstream iFile("input.txt");
+	if (iFile.is_open())
+	{
+		while (!iFile.eof())
+		{
+			iFile >> value;
+		}
+		iFile.close();
+	}
+	else
+	{
+		cout << "Error: No file found for reading input\n";
+		Sleep(5000);
+		exit(1);
+	}
+	return value;
 }
